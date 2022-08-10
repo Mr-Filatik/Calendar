@@ -1,0 +1,11 @@
+﻿@page "/"
+
+@using Calendar.Data
+
+<PageTitle>Calendar</PageTitle>
+
+<Month MonthInfo="@date" />
+
+@code{
+    MonthInformation date = new MonthInformation(DateTime.Now);
+}

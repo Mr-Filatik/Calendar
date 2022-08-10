@@ -1,0 +1,118 @@
+﻿@using Calendar.Data
+
+<div class="day @styleDayBackground" @onclick="(() => OnClickDayCallback.InvokeAsync(DayInfo))" ondragover="event.preventDefault();" ondragstart="event.dataTransfer.setData('', event.target.id);" @ondrop="HandleDrop" @ondragenter="HandleDragEnter" @ondragleave="HandleDragLeave">
+    <div class="day-number @styleDayNumber">
+        <strong>@DayInfo.Number</strong>
+    </div>
+    <div class="day-create-event" @onclick="(() => OnAddJobCallback.InvokeAsync(DayInfo))">
+        <strong>+</strong>
+        <div class="day-create-event-title">
+            <strong>Создать событие</strong>
+        </div>
+    </div>
+    <div class="event-list">
+        @if (DayInfo.Jobs != null && DayInfo.Jobs.Count > 0)
+        {
+            @for (int d = 0; d < DayInfo.Jobs.Count; d++)
+            {
+                <Job EventInfo="@DayInfo.Jobs[d]" OnDragStartCallback="@HandleDragStart" OnDragEndCallback="@HandleDragEnd" OnClickJobCallback="@ChangeReminder"/>
+            }
+        }
+        else
+        {
+            <div class="events-missing">
+                <p>Нет событий...</p>
+            </div>
+        }
+    </div>
+    <div class="day-dropzone"></div>
+</div>
+
+@code {
+    [Parameter]
+    public DayInformation DayInfo { get; set; }
+
+    [Parameter]
+    public EventCallback<DayInformation> OnClickDayCallback { get; set; }
+
+    [Parameter]
+    public EventCallback<DayInformation> OnAddJobCallback { get; set; }
+
+    [Parameter]
+    public EventCallback<(JobInformation, DayInformation)> OnClickJobCallback { get; set; }
+
+    [CascadingParameter]
+    MonthInformation DateInfo { get; set; }
+
+    private string styleDayBackground = "";
+    private string styleDayNumber = "";
+    private int dragCount = 0;
+
+    protected override void OnInitialized()
+    {
+        if (DateTime.Now.Year == DayInfo.Year && DateTime.Now.Month == DayInfo.Month && DateTime.Now.Day == DayInfo.Number)
+        {
+            styleDayNumber = "day-number-today";
+        }
+        base.OnInitialized();
+    }
+
+    public void HandleDragEnter()
+    {
+        MonthInformation.NewDayInformation = DayInfo;
+        styleDayBackground = "day-drag-enter";
+        dragCount++;
+    }
+
+    public void HandleDragLeave()
+    {
+        dragCount--;
+        if (dragCount == 0)
+        {
+            MonthInformation.NewDayInformation = null;
+            styleDayBackground = "";
+        }
+    }
+
+    public void HandleDrop()
+    {
+        if (MonthInformation.SelectJobInformation != null)
+        {
+            if (MonthInformation.NewDayInformation != null)
+            {
+                MonthInformation.SelectJobInformation.Year = DayInfo.Year;
+                MonthInformation.SelectJobInformation.Month = DayInfo.Month;
+                MonthInformation.SelectJobInformation.Number = DayInfo.Number;
+                MonthInformation.NewDayInformation.AddJob(MonthInformation.SelectJobInformation);
+            }
+            MonthInformation.SelectJobInformation = null;
+        }
+        styleDayBackground = "";
+        dragCount = 0;
+    }
+
+    private void HandleDragStart(JobInformation selectedJob)
+    {
+        MonthInformation.OldDayInformation = DayInfo;
+        MonthInformation.SelectJobInformation = selectedJob;
+    }
+
+    private void HandleDragEnd(JobInformation selectedJob)
+    {
+        if (MonthInformation.NewDayInformation != null)
+        {
+            MonthInformation.OldDayInformation?.RemoveJob(selectedJob);
+            MonthInformation.OldDayInformation = null;
+        }
+        MonthInformation.SelectJobInformation = null;
+        MonthInformation.NewDayInformation = null;
+        MonthInformation.OldDayInformation = null;
+        styleDayBackground = "";
+        dragCount = 0;
+    }
+
+    public void ChangeReminder(JobInformation jobInfo)
+    {
+        OnClickJobCallback.InvokeAsync((jobInfo, DayInfo));
+    }
+}

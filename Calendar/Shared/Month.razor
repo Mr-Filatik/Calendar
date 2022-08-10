@@ -1,0 +1,190 @@
+﻿@using Calendar.Data
+
+<div>
+    <button class="month-button" @onclick="@(() => MonthInfo.ChangeMonth())">Сегодня</button>
+    <button class="month-button" @onclick="@(() => MonthInfo.ChangeMonth(isNext: false))">Предудущий месяц</button>
+    <button class="month-button" @onclick="@(() => MonthInfo.ChangeMonth(isNext: true))">Следующий месяц</button>
+    <strong>@MonthInfo.MonthString @MonthInfo.Year</strong>
+    <br />
+    @if (MonthInfo.Weeks == null)
+    {
+        <p><em>Loading...</em></p>
+    }
+    else
+    {
+        <CascadingValue Value="MonthInfo">
+            <table class="month">
+                <thead>
+                    <tr>
+                        <th>Понедельник</th>
+                        <th>Вторник</th>
+                        <th>Среда</th>
+                        <th>Четверг</th>
+                        <th>Пятница</th>
+                        <th>Суббота</th>
+                        <th>Воскресение</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int w = 0; w < MonthInfo.Weeks.GetLength(0); w++)
+                    {
+                    <tr>
+                        @for (int d = 0; d < MonthInfo.Weeks.GetLength(1); d++)
+                            {
+                            <td>
+                                <Day DayInfo="@MonthInfo.Weeks[w, d]" OnClickDayCallback="@DaySelection" OnAddJobCallback="@AddReminder" OnClickJobCallback="@ChangeReminder" />
+                            </td>
+                            }
+                    </tr>
+                    }
+            </tbody>
+        </table>
+        <div class="event-editing @_styleEventEditingVisible">
+            <div class="event-editing-background" @onclick="@CloseReminder"></div>
+            <div class="event-editing-window">
+                <div class="event-editing-window-button event-editing-window-button-blue event-editing-window-button-close" @onclick="@CloseReminder">
+                    <strong>Закрыть</strong>
+                </div>
+                <div class="event-editing-window-button event-editing-window-button-blue event-editing-window-button-apply" @onclick="@AddDoneReminder">
+                    <strong>Сохранить</strong>
+                </div>
+                <div class="event-editing-window-button event-editing-window-button-red event-editing-window-button-delete" @onclick="@DeleteDoneReminder">
+                    <strong>Удалить</strong>
+                </div>
+                @if (_changedInfo != null)
+                    {
+                    <input class="event-editing-window-input-text" type="text" @bind="_newEventText" />
+                    <div class="event-editing-window-input-date">
+                        <strong>Событие @_newEventDay @MonthInfo.MonthString @MonthInfo.Year г.</strong>
+                    </div>
+                    <div class="event-editing-window-input-time">
+                        <strong>Время (ч м):</strong>
+                    </div>
+                    @if (!_newEventIsAllDay)
+                        {
+                        <input class="event-editing-window-input-hour" type="number" @bind="_newEventHour" min="0" max="23" maxlength="2" />
+                        <input class="event-editing-window-input-minute" type="number" @bind="_newEventMinute" min="0" max="59" maxlength="2" />
+                        }
+                    <div class="event-editing-window-input-text-all-day">
+                        <strong>Весь день?</strong>
+                    </div>
+                    <input class="event-editing-window-input-all-day" type="checkbox" @bind="_newEventIsAllDay" />
+                    }
+            </div>
+        </div>
+    </CascadingValue>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public MonthInformation MonthInfo { get; set; }
+
+    private string _styleEventEditingVisible = "";
+    private bool isOperation = false;
+    private bool isChange = true;
+
+    private DayInformation _changedDayInfo = null;
+    private JobInformation _changedInfo = null;
+    private string _newEventText = "";
+    private int? _newEventHour = null;
+    private int? _newEventMinute = null;
+    private bool _newEventIsAllDay = false;
+    private int _newEventDay = 1;
+
+    public void DaySelection(DayInformation DayInfo)
+    {
+        if (!isOperation)
+        {
+            if (MonthInfo.Month != DayInfo.Month)
+            {
+                int a = MonthInfo.Month - DayInfo.Month;
+                if (Math.Abs(a) > 1)
+                {
+                    a = -a;
+                }
+                MonthInfo.ChangeMonth(a < 0);
+            }
+        }
+        isOperation = false;
+    }
+
+    public void AddReminder(DayInformation DayInfo)
+    {
+        isOperation = true;
+        isChange = false;
+        _changedDayInfo = DayInfo;
+        _changedInfo = new JobInformation();
+        _newEventIsAllDay = false;
+        _newEventHour = 0;
+        _newEventMinute = 0;
+        _newEventText = "";
+        _newEventDay = DayInfo.Number;
+        _styleEventEditingVisible = "event-editing-visible";
+    }
+
+    public void ChangeReminder((JobInformation JobInfo, DayInformation DayInfo) Info)
+    {
+        isOperation = true;
+        isChange = true;
+        _changedInfo = Info.JobInfo;
+        _changedDayInfo = Info.DayInfo;
+        _newEventIsAllDay = _changedInfo.Hour == null;
+        if (_changedInfo.Hour == null) _changedInfo.Hour = 0;
+        _newEventHour = _changedInfo.Hour;
+        if (_changedInfo.Minute == null) _changedInfo.Minute = 0;
+        _newEventMinute = _changedInfo.Minute;
+        _newEventText = _changedInfo.Text;
+        _newEventDay = _changedInfo.Number;
+        _styleEventEditingVisible = "event-editing-visible";
+    }
+
+    public void CloseReminder()
+    {
+        _styleEventEditingVisible = "";
+    }
+
+    public void AddDoneReminder()
+    {
+        _styleEventEditingVisible = "";
+        _newEventHour = _newEventHour > 23 ? 23 : _newEventHour;
+        _newEventHour = _newEventHour < 0 ? 0 : _newEventHour;
+        _newEventMinute = _newEventMinute > 59 ? 59 : _newEventMinute;
+        _newEventMinute = _newEventMinute < 0 ? 0 : _newEventMinute;
+        if (!isChange)
+        {
+            _changedDayInfo?.Jobs?.Add(new JobInformation()
+                {
+                    Year = MonthInfo.Year,
+                    Month = MonthInfo.Month,
+                    Number = _newEventDay,
+                    Hour = _newEventIsAllDay ? null : _newEventHour,
+                    Minute = _newEventIsAllDay ? null : _newEventMinute,
+                    Text = _newEventText
+                });
+        }
+        else
+        {
+            if (_newEventIsAllDay)
+            {
+                _changedInfo.Hour = null;
+                _changedInfo.Minute = null;
+            }
+            else
+            {
+                _changedInfo.Hour = _newEventHour;
+                _changedInfo.Minute = _newEventMinute;
+            }
+            _changedInfo.Text = _newEventText;
+        }
+    }
+
+    public void DeleteDoneReminder()
+    {
+        _styleEventEditingVisible = "";
+        if (isChange)
+        {
+            _changedDayInfo?.Jobs?.Remove(_changedInfo);
+        }
+    }
+}

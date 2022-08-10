@@ -1,0 +1,30 @@
+﻿@using Calendar.Data
+
+<div class="event" draggable="true" @ondragstart="@(() => OnDragStartCallback.InvokeAsync(EventInfo))" @ondragend="@(() => OnDragEndCallback.InvokeAsync(EventInfo))" @onclick="@(() => OnClickJobCallback.InvokeAsync(EventInfo))">
+    <p>
+        @if (EventInfo.Hour != null)
+        {
+        <strong>
+            @(EventInfo.Hour.ToString().PadLeft(2, '0')):@(EventInfo.Minute != null ? EventInfo.Minute.ToString().PadLeft(2, '0') + " " : "00" + " ")
+        </strong>
+        }
+        @EventInfo.Text
+    </p>
+</div>
+
+@code {
+    [Parameter]
+    public JobInformation EventInfo { get; set; }
+
+    [Parameter]
+    public EventCallback<JobInformation> OnDragStartCallback { get; set; }
+
+    [Parameter]
+    public EventCallback<JobInformation> OnDragEndCallback { get; set; }
+
+    [Parameter]
+    public EventCallback<JobInformation> OnClickJobCallback { get; set; }
+
+    [CascadingParameter]
+    MonthInformation DateInfo { get; set; }
+}
